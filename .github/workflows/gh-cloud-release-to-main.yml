@@ -1,3 +1,4 @@
+# dx-all-suite/.github/workflows/gh-cloud-release-to-main.yml
 name: Full Release to Main
 run-name: Triggering full release from staging to main across all submodules
 
@@ -51,23 +52,34 @@ jobs:
       - name: Merge dx-all-suite Staging to Main (Squash)
         if: steps.check_dx_all_suite_diff.outputs.has_changes == 'true'
         run: |
+          echo "Pulling latest changes from origin/main before merge..."
+          git pull origin main # 최신 main 브랜치 상태를 가져옴
+
+          echo "Attempting to squash merge origin/staging into main..."
           git merge --squash origin/staging -m "${{ env.LAST_STAGING_COMMIT_MESSAGE }}"
-          git commit -m "${{ env.LAST_STAGING_COMMIT_MESSAGE }}"
-          git push origin main
+
+          # Merge 후 스테이징된 변경 사항이 있는지 확인
+          if git diff --staged --quiet; then
+            echo "::notice::No new changes were staged after squash merge. Skipping commit."
+          else
+            echo "::notice::Changes staged. Proceeding with commit and push."
+            git commit -m "${{ env.LAST_STAGING_COMMIT_MESSAGE }}"
+            git push origin main
+          fi
 
       - name: Recreate Staging Branch for dx-all-suite from Main
         if: steps.check_dx_all_suite_diff.outputs.has_changes == 'true'
         run: |
           echo "Deleting remote origin/staging branch for dx-all-suite..."
           git push origin --delete staging || true
-          
+
           echo "Checking out main branch and pulling latest for dx-all-suite..."
           git checkout main
           git pull origin main
-          
+
           echo "Creating new staging branch from main for dx-all-suite..."
           git checkout -b staging
-          
+
           echo "Pushing new staging branch to origin for dx-all-suite..."
           git push -u origin staging
 
@@ -80,7 +92,7 @@ jobs:
         with:
           token: ${{ secrets.GC_DCI_TOKEN }}
           repository: ${{ env.OWNER }}/dx-runtime
-          event-type: release-to-main # dx-runtime은 하위 서브모듈을 가지므로 release-to-main 유지
+          event-type: release-to-main
           client-payload: |
             {
               "repo_name": "dx-runtime",
