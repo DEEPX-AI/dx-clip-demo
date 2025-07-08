@@ -40,7 +40,10 @@ jobs:
 
           echo "Updating submodule $SUBMODULE_NAME to $SUBMODULE_SHA on $TARGET_BRANCH branch."
 
+          # Fetch latest changes and reset to remote branch to avoid divergence
+          git fetch origin
           git checkout $TARGET_BRANCH
+          git reset --hard origin/$TARGET_BRANCH
 
           git config -f .gitmodules submodule.$SUBMODULE_NAME.url git@github.com:DEEPX-AI/$SUBMODULE_NAME.git
           git submodule update --init --recursive $SUBMODULE_NAME
