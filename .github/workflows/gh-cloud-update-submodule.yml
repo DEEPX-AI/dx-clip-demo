@@ -58,38 +58,8 @@ jobs:
           echo "DATE=$(date +"%Y-%m-%d")" >> $GITHUB_ENV
 
       - name: Commit Submodule Changes
-        id: auto_commit # Add an ID to get outputs
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           branch: ${{ github.event.client_payload.parent_ref || github.event.client_payload.ref }}
           commit_message: "ci(${{env.DATE}}): Update ${{ github.event.client_payload.submodule_name || github.event.client_payload.name }}"
           commit_options: "--no-verify --allow-empty"
-
-      - name: Create Staging Tag for dx-all-suite
-        # 이 스텝은 dx-all-suite의 staging 브랜치에 대한 업데이트가 발생하고
-        # client_payload에 tag_version이 제공되었을 때만 실행됩니다.
-        if: (github.event.client_payload.parent_ref == 'staging' || github.event.client_payload.ref == 'staging') && github.event.client_payload.tag_version != ''
-        run: |
-          FULL_COMMIT_MESSAGE="ci(${{env.DATE}}): Update ${{ github.event.client_payload.submodule_name || github.event.client_payload.name }}"
-          TAG_NAME="${{ github.event.client_payload.tag_version }}" # 전달받은 tag_version 사용
-          COMMIT_SHA="${{ steps.auto_commit.outputs.commit_hash }}"
-
-          echo "Creating tag: $TAG_NAME at commit $COMMIT_SHA"
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -f -a "$TAG_NAME" "$COMMIT_SHA" -m "$FULL_COMMIT_MESSAGE"
-          git push origin "$TAG_NAME" --force || true # 태그가 이미 존재하면 강제 푸시, 오류 무시
-
-          # 선택적으로 이 staging 태그에 대한 드래프트 릴리즈 생성
-          curl -s -X POST \
-            -H "Authorization: token ${{ secrets.GC_DCI_TOKEN }}" \
-            -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/repos/DEEPX-AI/dx-all-suite/releases" \
-            -d '{
-              "tag_name": "'"$TAG_NAME"'",
-              "name": "'"$TAG_NAME"'",
-              "body": "'"$FULL_COMMIT_MESSAGE"'",
-              "draft": true,
-              "prerelease": true,
-              "make_latest": "false"
-            }' || true # 릴리즈가 이미 존재하면 오류 무시
