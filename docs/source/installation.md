@@ -48,7 +48,7 @@ The `DX-Compiler` environment provides prebuilt binary outputs and does not incl
 $ ./dx-compiler/install.sh
 ```
 
-When executing the above command, **DEEPX Developers' Portal** account authentication may be required to download and install the DX-Compiler modules. The script obtains authentication information based on the following priority:
+When executing the above command, **DEEPX Developers' Portal (https://developer.deepx.ai)** account authentication may be required to download and install the DX-Compiler modules. The script obtains authentication information based on the following priority:
 
 1.  **Directly specify when executing the command (1st priority):**
     ```
