@@ -9,13 +9,8 @@ source ${DX_AS_PATH}/scripts/color_env.sh
 
 # Function to display help message
 show_help() {
-    echo "Usage: $(basename "$0") OPTIONS(--all | target=<environment_name>) [--help]"
-    echo "Example:1) $0 --all"
-    echo "Example 3) $0 --target=dx-runtime"
-    echo "Example 3) $0 --target=dx-modelzoo"
+    echo "Usage: $(basename "$0") [--help]"
     echo "Options:"
-    echo "  --all                          : Archiving from git repositories (dx-runtime & dx-modelzoo)"
-    echo "  --target=<environment_name>    : Archiving specify target from git repositories (ex> dx-runtime | dx-modelzoo)"
     echo "  [--help]                       : Show this help message"
 
     if [ "$1" == "error" ] && [[ ! -n "$2" ]]; then
@@ -80,16 +75,7 @@ git_archive_from_subdirs() {
     return 0
 }
 
-archive_runtime() {
-    DXRT_TARGET_DIRS=("dx_rt" "dx_app" "dx_stream")
-    git_archive_from_subdirs "${DX_AS_PATH}/dx-runtime" "${DXRT_TARGET_DIRS[@]}"
-    if [ $? -ne 0 ]; then
-        echo -e "${TAG_ERROR} Archiving dx-runtime / dx_rt, dx_app, dx_stream failed!"
-        exit 1
-    fi
-}
-
-archive_modelzoo() {
+archive_clip-demo() {
     DXRT_TARGET_DIRS=("dx_rt")
     git_archive_from_subdirs "${DX_AS_PATH}/dx-runtime" "${DXRT_TARGET_DIRS[@]}"
     if [ $? -ne 0 ]; then
@@ -97,9 +83,9 @@ archive_modelzoo() {
         exit 1
     fi
     
-    git_archive "${DX_AS_PATH}/dx-modelzoo"
+    git_archive "${DX_AS_PATH}/dx-clip-demo"
     if [ $? -ne 0 ]; then
-        echo -e "${TAG_ERROR} Archiving dx-modelzoo failed!"
+        echo -e "${TAG_ERROR} Archiving dx-clip-demo failed!"
         exit 1
     fi
 }
@@ -110,33 +96,12 @@ main() {
     OUTPUT_DIR="$DX_AS_PATH/archives"
     mkdir -p "$OUTPUT_DIR"
 
-    case $TARGET_ENV in
-        dx-runtime)
-            archive_runtime
-            ;;
-        dx-modelzoo)
-            archive_modelzoo
-            ;;
-        all)
-            archive_runtime
-            archive_modelzoo
-            ;;
-        *)
-            echo -e "${TAG_ERROR} Unknown '--target' option '$TARGET_ENV'"
-            show_help "error" "${TAG_INFO} (Hint) Please specify either the '--all' option or the '--target=<dx-runtime | dx-modelzoo>' option."
-            ;;
-    esac
+    archive_clip-demo
 }
 
 # parse args
 for i in "$@"; do
     case "$1" in
-        --all)
-            TARGET_ENV=all
-            ;;
-        --target=*)
-            TARGET_ENV="${1#*=}"
-            ;;
         --help)
             show_help
             exit 0

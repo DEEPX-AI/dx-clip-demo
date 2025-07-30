@@ -15,14 +15,9 @@ INTEL_GPU_HW_ACC=0
 
 # Function to display help message
 show_help() {
-    echo "Usage: $(basename "$0") OPTIONS(--all | target=<environment_name>) --ubuntu_version=<version> [--help]"
-    echo "Example:1) $0 --all --ubuntu_version=24.04"
-    echo "Example 2) $0 --target=dx-compiler --ubuntu_version=24.04"
-    echo "Example 3) $0 --target=dx-runtime --ubuntu_version=24.04"
-    echo "Example 3) $0 --target=dx-modelzoo --ubuntu_version=24.04"
+    echo "Usage: $(basename "$0") OPTIONS(--ubuntu_version=<version> [--help]"
+    echo "Example:1) $0 --ubuntu_version=24.04"
     echo "Options:"
-    echo "  --all                          : Install DXNN® Software Stack (dx-compiler & dx-runtime & dx-modelzoo)"
-    echo "  --target=<environment_name>    : Install specify target DXNN® environment (ex> dx-compiler | dx-runtime | dx-modelzoo)"
     echo "  --ubuntu_version=<version>     : Specify Ubuntu version (ex> 24.04)"
     echo "  [--help]                       : Show this help message"
 
@@ -58,7 +53,6 @@ docker_down_impl()
         touch ${DUMMY_XAUTHORITY}
         export XAUTHORITY=${DUMMY_XAUTHORITY}
         export XAUTHORITY_TARGET=${DUMMY_XAUTHORITY}
-        
     else
         echo -e "${TAG_INFO} XAUTHORITY(${XAUTHORITY}) is set"
         export XAUTHORITY_TARGET="/tmp/.docker.xauth"
@@ -70,33 +64,10 @@ docker_down_impl()
     ${CMD}
 }
 
-docker_down_all() 
-{
-    docker_down_dx-compiler
-    docker_down_dx-runtime
-    docker_down_dx-modelzoo
-}
-
-docker_down_dx-compiler() 
-{
-    docker_down_impl "compiler"
-}
-
-docker_down_dx-runtime()
+docker_down_dx-clip-demo()
 {
     local docker_compose_args="-f docker/docker-compose.yml"
-
-    if [ ${INTEL_GPU_HW_ACC} -eq 1 ]; then
-        docker_compose_args="${docker_compose_args} -f docker/docker-compose.intel_gpu_hw_acc.yml"
-    fi
-
-    docker_down_impl "runtime" "${docker_compose_args}"
-}
-
-docker_down_dx-modelzoo()
-{
-    local docker_compose_args="-f docker/docker-compose.yml"
-    docker_down_impl "modelzoo" "${docker_compose_args}"
+    docker_down_impl "clip-demo" "${docker_compose_args}"
 }
 
 main() {
@@ -105,42 +76,15 @@ main() {
         show_help "error" "--ubuntu_version ($UBUNTU_VERSION) does not exist."
     else
         echo -e "${TAG_INFO} UBUNTU_VERSSION($UBUNTU_VERSION) is set."
-        echo -e "${TAG_INFO} TARGET_ENV($TARGET_ENV) is set."
     fi
-
-    case $TARGET_ENV in
-        dx-compiler)
-            echo "Stopping and removing dx-compiler"
-            docker_down_dx-compiler
-            ;;
-        dx-runtime)
-            echo "Stopping and removing dx-runtime"
-            docker_down_dx-runtime
-            ;;
-        dx-modelzoo)
-            echo "Stopping and removing dx-modelzoo"
-            docker_down_dx-modelzoo
-            ;;
-        all)
-            echo "Stopping and removing all DXNN® environments"
-            docker_down_all
-            ;;
-        *)
-            echo -e "${TAG_ERROR} Unknown '--target' option '$TARGET_ENV'"
-            show_help "error" "${TAG_INFO} (Hint) Please specify either the '--all' option or the '--target=<dx-compiler | dx-runtime>' option."
-            ;;
-    esac
+   
+    echo "Stopping and removing dx-clip-demo"
+    docker_down_dx-clip-demo
 }
 
 # parse args
 for i in "$@"; do
     case "$1" in
-        --all)
-            TARGET_ENV=all
-            ;;
-        --target=*)
-            TARGET_ENV="${1#*=}"
-            ;;
         --ubuntu_version=*)
             UBUNTU_VERSION="${1#*=}"
             ;;
@@ -150,9 +94,6 @@ for i in "$@"; do
             ;;
         --dev)
             DEV_MODE=1
-            ;;
-        --intel_gpu_hw_acc)
-            INTEL_GPU_HW_ACC=1
             ;;
         *)
             echo -e "${TAG_ERROR}: Invalid option '$1'"

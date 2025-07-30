@@ -1,24 +1,5 @@
 services:
-  dx-compiler:
+  dx-clip-demo:
     volumes:
-      - /mnt/datasets:/mnt/datasets
-      - /mnt/regression_storage:/mnt/regression_storage
-      - /mnt/modelzoo_storage:/mnt/modelzoo_storage
-      - ${DX_COMPILER_SRC_PATH:-../dx-compiler}:/deepx/dx-compiler
-      - ~/.ssh:/root/.ssh
-  dx-runtime:
-    volumes:
-      - /mnt/datasets:/mnt/datasets
-      - /mnt/regression_storage:/mnt/regression_storage
-      - /mnt/modelzoo_storage:/mnt/modelzoo_storage
-      - ${DX_RUNTIME_SRC_PATH:-../dx-runtime}:/deepx/dx-runtime
-      - ~/.ssh:/root/.ssh
-  dx-modelzoo:
-    volumes:
-      - /mnt/datasets:/mnt/datasets
-      - /mnt/regression_storage:/mnt/regression_storage
-      - /mnt/modelzoo_storage:/mnt/modelzoo_storage
-      - ${DX_COMPILER_SRC_PATH:-../dx-compiler}:/deepx/dx-compiler
-      - ${DX_RUNTIME_SRC_PATH:-../dx-runtime}:/deepx/dx-runtime
-      - ${DX_MZ_SRC_PATH:-../dx-modelzoo}:/deepx/dx-modelzoo
+      - ${DX_CLIP_DEMO_SRC_PATH:-../dx-clip-demo}:/deepx/dx-clip-demo
       - ~/.ssh:/root/.ssh

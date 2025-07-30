@@ -10,20 +10,14 @@ pushd "$DX_AS_PATH"
 OUTPUT_DIR="$DX_AS_PATH/archives"
 UBUNTU_VERSION=""
 
-NVIDIA_GPU_MODE=0
 DEV_MODE=0
 INTEL_GPU_HW_ACC=0
 
 # Function to display help message
 show_help() {
-    echo "Usage: $(basename "$0") OPTIONS(--all | target=<environment_name>) --ubuntu_version=<version> [--help]"
-    echo "Example:1) $0 --all --ubuntu_version=24.04"
-    echo "Example 2) $0 --target=dx-compiler --ubuntu_version=24.04"
-    echo "Example 3) $0 --target=dx-runtime --ubuntu_version=24.04"
-    echo "Example 3) $0 --target=dx-modelzoo --ubuntu_version=24.04"
+    echo "Usage: $(basename "$0") OPTIONS(--ubuntu_version=<version> [--help]"
+    echo "Example:1) $0 --ubuntu_version=24.04"
     echo "Options:"
-    echo "  --all                          : Install DXNN® Software Stack (dx-compiler & dx-runtime & dx-modelzoo)"
-    echo "  --target=<environment_name>    : Install specify target DXNN® environment (ex> dx-compiler | dx-runtime | dx-modelzoo)"
     echo "  --ubuntu_version=<version>     : Specify Ubuntu version (ex> 24.04)"
     echo "  [--help]                       : Show this help message"
 
@@ -70,10 +64,6 @@ docker_run_impl()
     local target=$1
     local config_file_args=${2:--f docker/docker-compose.yml}
 
-    if [ ${NVIDIA_GPU_MODE} -eq 1 ]; then
-        config_file_args="${config_file_args} -f docker/docker-compose.nvidia_gpu.yml"
-    fi
-
     if [ ${DEV_MODE} -eq 1 ]; then
         config_file_args="${config_file_args} -f docker/docker-compose.dev.yml"
     fi
@@ -94,7 +84,7 @@ docker_run_impl()
         export XAUTHORITY_TARGET="/tmp/.docker.xauth"
     fi
 
-    CMD="docker compose ${config_file_args} -p dx-all-suite up -d --remove-orphans dx-${target}"
+    CMD="docker compose ${config_file_args} up -d --remove-orphans dx-${target}"
     echo "${CMD}"
 
     ${CMD}
@@ -129,34 +119,10 @@ docker_run_impl()
     fi
 }
 
-docker_run_all() 
-{
-    docker_run_dx-compiler
-    docker_run_dx-runtime
-    docker_run_dx-modelzoo
-}
-
-docker_run_dx-compiler() 
+docker_run_dx-clip-demo()
 {
     local docker_compose_args="-f docker/docker-compose.yml"
-    docker_run_impl "compiler" "${docker_compose_args}"
-}
-
-docker_run_dx-runtime()
-{
-    local docker_compose_args="-f docker/docker-compose.yml"
-
-    if [ ${INTEL_GPU_HW_ACC} -eq 1 ]; then
-        docker_compose_args="${docker_compose_args} -f docker/docker-compose.intel_gpu_hw_acc.yml"
-    fi
-
-    docker_run_impl "runtime" "${docker_compose_args}"
-}
-
-docker_run_dx-modelzoo()
-{
-    local docker_compose_args="-f docker/docker-compose.yml"
-    docker_run_impl "modelzoo" "${docker_compose_args}"
+    docker_run_impl "clip-demo" "${docker_compose_args}"
 }
 
 main() {
@@ -165,49 +131,19 @@ main() {
         show_help "error" "--ubuntu_version ($UBUNTU_VERSION) does not exist."
     else
         echo -e "${TAG_INFO} UBUNTU_VERSSION($UBUNTU_VERSION) is set."
-        echo -e "${TAG_INFO} TARGET_ENV($TARGET_ENV) is set."
     fi
 
     check_xdg_sesstion_type
 
-    case $TARGET_ENV in
-        dx-compiler)
-            echo "Installing dx-compiler"
-            docker_run_dx-compiler
-            ;;
-        dx-runtime)
-            echo "Installing dx-runtime"
-            docker_run_dx-runtime
-            ;;
-        dx-modelzoo)
-            echo "Installing dx-modelzoo"
-            docker_run_dx-modelzoo
-            ;;
-        all)
-            echo "Installing all DXNN® environments"
-            docker_run_all
-            ;;
-        *)
-            echo -e "${TAG_ERROR} Unknown '--target' option '$TARGET_ENV'"
-            show_help "error" "${TAG_INFO} (Hint) Please specify either the '--all' option or the '--target=<dx-compiler | dx-runtime>' option."
-            ;;
-    esac
+    echo "Installing dx-clip-demo"
+    docker_run_dx-clip-demo
 }
 
 # parse args
 for i in "$@"; do
     case "$1" in
-        --all)
-            TARGET_ENV=all
-            ;;
-        --target=*)
-            TARGET_ENV="${1#*=}"
-            ;;
         --ubuntu_version=*)
             UBUNTU_VERSION="${1#*=}"
-            ;;
-        --nvidia_gpu)
-            NVIDIA_GPU_MODE=1
             ;;
         --help)
             show_help
@@ -215,9 +151,6 @@ for i in "$@"; do
             ;;
         --dev)
             DEV_MODE=1
-            ;;
-        --intel_gpu_hw_acc)
-            INTEL_GPU_HW_ACC=1
             ;;
         *)
             echo -e "${TAG_ERROR}: Invalid option '$1'"

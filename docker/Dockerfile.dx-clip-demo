@@ -134,34 +134,25 @@ RUN set -x && \
     cd ./python_package && \
     pip install .
 
-WORKDIR /deepx/dx-modelzoo
-ARG FILE_DXMODELZOO=archives/dx-modelzoo.tar.gz
-ADD ${FILE_DXMODELZOO} /deepx/dx-modelzoo/
-
-#### Install dx-modelzoo python dependencies ####
-# dx_simulator installation is disabled — enabling it would increase the Docker image size from 2GB to 10GB.
-# Therefore, it is recommended to run `/deepx/dx-modelzoo/setup.sh` after the container starts, rather than during the Docker build stage.
-##############################
-# RUN set -x && \
-#     . /venv-dxnn/bin/activate && \
-#     echo "Install dx-modelzoo..." && \
-#     pip install -e .
-
-WORKDIR /deepx
-
 RUN apt-get update && \
     apt-get install -y \
     vim fim && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+WORKDIR /deepx/dx-clip-demo
+ARG FILE_DX_CLIP_DEMO=archives/dx-clip-demo.tar.gz
+ADD ${FILE_DX_CLIP_DEMO} /deepx/dx-clip-demo/
+# RUN set -x && \
+#     . /venv-dxnn/bin/activate && \
+#     echo "Build dx_clip_demo..." && \
+#     ./setup.sh --app_type=pyqt
+
+WORKDIR /deepx/dx-clip-demo
+
 RUN echo "source /venv-dxnn/bin/activate" >> /root/.bashrc
 
-# COPY 'scripts' and 'getting-start'
-COPY scripts /deepx/scripts
-# COPY getting-start /deepx/getting-start
-# ENV DX_CONTAINER_MODE=true
-# RUN /deepx/getting-start/modelzoo-clean.sh
+ENV DX_CONTAINER_MODE=true
 
 ENTRYPOINT [ "/usr/local/bin/dxrtd" ]
 # ENTRYPOINT ["tail", "-f", "/dev/null"]

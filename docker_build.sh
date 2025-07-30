@@ -1,7 +1,6 @@
 #!/bin/bash
 SCRIPT_DIR=$(realpath "$(dirname "$0")")
 DX_AS_PATH=$(realpath -s "${SCRIPT_DIR}")
-COMPILER_PATH="${DX_AS_PATH}/dx-compiler"
 
 # color env settings
 source ${DX_AS_PATH}/scripts/color_env.sh
@@ -11,41 +10,14 @@ pushd "$DX_AS_PATH"
 OUTPUT_DIR="$DX_AS_PATH/archives"
 UBUNTU_VERSION=""
 
-NVIDIA_GPU_MODE=0
 INTERNAL_MODE=0
-FORCE_ARGS=""
-
-# Properties file path
-VERSION_FILE="$COMPILER_PATH/compiler.properties"
-
-# read 'COM_VERSION' from properties file
-if [[ -f "$VERSION_FILE" ]]; then
-    # load varialbles
-    source "$VERSION_FILE"
-else
-    echo -e "${TAG_ERROR} Version file '$VERSION_FILE' not found.\n${TAG_INFO} ${COLOR_BRIGHT_YELLOW_ON_BLACK}Please try running 'git submodule update --init --recursive --force' and then try again.${COLOR_RESET}"
-    exit 1
-fi
-
-if [ -n "${COM_VERSION}" ]; then
-    echo -e "${TAG_INFO} dx_com version(${COM_VERSION}) is set."
-else
-    echo -e "${TAG_ERROR} 'dx_com' version is not specified in ${VERSION_FILE}."
-    exit 1
-fi
-
-FILE_DXCOM="archives/dx_com_M1_v${COM_VERSION}.tar.gz"
 
 # Function to display help message
 show_help() {
-    echo "Usage: $(basename "$0") OPTIONS(--all | target=<environment_name>) --ubuntu_version=<version> [--help]"
-    echo "Example 1) $0 --all --ubuntu_version=24.04"
-    echo "Example 2) $0 --target=dx-compiler --ubuntu_version=24.04"
-    echo "Example 3) $0 --target=dx-runtime --ubuntu_version=24.04 --driver_update"
-    echo "Example 3) $0 --target=dx-modelzoo --ubuntu_version=24.04 --driver_update"
+    echo "Usage: $(basename "$0") OPTIONS(--ubuntu_version=<version> [--help]"
+    echo "Example 1) $0 --ubuntu_version=24.04"
+    echo "Example 3) $0 --ubuntu_version=24.04 --driver_update"
     echo "Options:"
-    echo "  --all                          : Install DXNN® Software Stack (dx-compiler & dx-runtime & dx-modelzoo)"
-    echo "  --target=<environment_name>    : Install specify target DXNN® environment (ex> dx-compiler | dx-runtime | dx-modelzoo)"
     echo "  --ubuntu_version=<version>     : Specify Ubuntu version (ex> 24.04)"
     echo "  [--driver_update]              : Install 'dx_rt_npu_linux_driver' in the host environment"
     echo "  [--no-cache]                   : Build Docker images freshly without cache"
@@ -70,10 +42,6 @@ docker_build_impl()
     local config_file_args=${2:--f docker/docker-compose.yml}
     local no_cache_arg=""
 
-    if [ ${NVIDIA_GPU_MODE} -eq 1 ]; then
-        config_file_args="${config_file_args} -f docker/docker-compose.nvidia_gpu.yml"
-    fi
-
     if [ ${INTERNAL_MODE} -eq 1 ]; then
         config_file_args="${config_file_args} -f docker/docker-compose.internal.yml"
     fi
@@ -85,14 +53,12 @@ docker_build_impl()
     # Build Docker image
     export COMPOSE_BAKE=true
     export UBUNTU_VERSION=${UBUNTU_VERSION}
-    export FILE_DXCOM=${FILE_DXCOM}
     if [ ! -n "${XAUTHORITY}" ]; then
         echo -e "${TAG_INFO} XAUTHORITY env is not set. so, try to set automatically."
         DUMMY_XAUTHORITY="/tmp/dummy"
         touch ${DUMMY_XAUTHORITY}
         export XAUTHORITY=${DUMMY_XAUTHORITY}
         export XAUTHORITY_TARGET=${DUMMY_XAUTHORITY}
-        
     else
         echo -e "${TAG_INFO} XAUTHORITY(${XAUTHORITY}) is set"
         export XAUTHORITY_TARGET="/tmp/.docker.xauth"
@@ -104,29 +70,10 @@ docker_build_impl()
     ${CMD} || { echo -e "${TAG_ERROR} docker build '${target} failed. "; exit 1; }
 }
 
-docker_build_all() 
-{
-    docker_build_dx-compiler
-    docker_build_dx-runtime
-    docker_build_dx-modelzoo
-}
-
-docker_build_dx-compiler() 
+docker_build_dx-clip-demo()
 {
     local docker_compose_args="-f docker/docker-compose.yml"
-    docker_build_impl "compiler" "${docker_compose_args}"
-}
-
-docker_build_dx-runtime()
-{
-    local docker_compose_args="-f docker/docker-compose.yml"
-    docker_build_impl "runtime" "${docker_compose_args}"
-}
-
-docker_build_dx-modelzoo()
-{
-    local docker_compose_args="-f docker/docker-compose.yml"
-    docker_build_impl "modelzoo" "${docker_compose_args}"
+    docker_build_impl "clip-demo" "${docker_compose_args}"
 }
 
 install_dx_rt_npu_linux_driver() 
@@ -143,8 +90,6 @@ main() {
         show_help "error" "--ubuntu_version ($UBUNTU_VERSION) does not exist."
     else
         echo -e "${TAG_INFO} UBUNTU_VERSSION($UBUNTU_VERSION) is set."
-        echo -e "${TAG_INFO} TARGET_ENV($TARGET_ENV) is set."
-        echo -e "${TAG_INFO} FILE_DXCOM($FILE_DXCOM) is set."
         if [ "$DRIVER_UPDATE" = "y" ]; then
             echo -e "${TAG_INFO} DRIVER_UPDATE($DRIVER_UPDATE) is set."
         fi
@@ -153,39 +98,12 @@ main() {
         fi
     fi
 
-    case $TARGET_ENV in
-        dx-compiler)
-            echo "Archiving dx-compiler"
-            ${DX_AS_PATH}/scripts/archive_dx-compiler.sh $FORCE_ARGS || { echo -e "${TAG_ERROR} Archiving dx-compiler failed."; exit 1; }
-            docker_build_dx-compiler
-            ;;
-        dx-runtime)
-            echo "Archiving dx-runtime"
-            ${DX_AS_PATH}/scripts/archive_git_repos.sh --target=dx-runtime || { echo -e "${TAG_ERROR} Archiving dx-runtime failed.\n${TAG_INFO} ${COLOR_BRIGHT_YELLOW_ON_BLACK}Please try running 'git submodule update --init --recursive --force' and then try again.${COLOR_RESET}"; exit 1; }
-            docker_build_dx-runtime
-            if [ "$DRIVER_UPDATE" = "y" ]; then
-                install_dx_rt_npu_linux_driver
-            fi
-            ;;
-        dx-modelzoo)
-            echo "Archiving dx-modelzoo"
-            ${DX_AS_PATH}/scripts/archive_git_repos.sh --target=dx-modelzoo || { echo -e "${TAG_ERROR} Archiving dx-modelzoo failed.\n${TAG_INFO} ${COLOR_BRIGHT_YELLOW_ON_BLACK}Please try running 'git submodule update --init --recursive --force' and then try again.${COLOR_RESET}"; exit 1; }
-            docker_build_dx-modelzoo
-            ;;
-        all)
-            echo "Archiving all DXNN® environments"
-            ${DX_AS_PATH}/scripts/archive_dx-compiler.sh || { echo -e "${TAG_ERROR} Archiving dx-compiler failed."; exit 1; }
-            ${DX_AS_PATH}/scripts/archive_git_repos.sh --all || { echo -e "${TAG_ERROR} Archiving dx-runtime or dx-modelzoo failed.\n${TAG_INFO} ${COLOR_BRIGHT_YELLOW_ON_BLACK}Please try running 'git submodule update --init --recursive --force' and then try again.${COLOR_RESET}"; exit 1; }
-            docker_build_all
-            if [ "$DRIVER_UPDATE" = "y" ]; then
-                install_dx_rt_npu_linux_driver
-            fi
-            ;;
-        *)
-            echo -e "${TAG_ERROR} Unknown '--target' option '$TARGET_ENV'"
-            show_help "error" "${TAG_INFO} (Hint) Please specify either the '--all' option or the '--target=<dx-compiler | dx-runtime>' option."
-            ;;
-    esac
+    echo "Archiving dx-clip-demo"
+    ${DX_AS_PATH}/scripts/archive_git_repos.sh || { echo -e "${TAG_ERROR} Archiving dx-clip-demo failed.\n${TAG_INFO} ${COLOR_BRIGHT_YELLOW_ON_BLACK}Please try running 'git submodule update --init --recursive --force' and then try again.${COLOR_RESET}"; exit 1; }
+    docker_build_dx-clip-demo
+    if [ "$DRIVER_UPDATE" = "y" ]; then
+        install_dx_rt_npu_linux_driver
+    fi
 
     # remove archives
     # if [[ -d "$OUTPUT_DIR" ]]; then
@@ -197,12 +115,6 @@ main() {
 # parse args
 for i in "$@"; do
     case "$1" in
-        --all)
-            TARGET_ENV=all
-            ;;
-        --target=*)
-            TARGET_ENV="${1#*=}"
-            ;;
         --ubuntu_version=*)
             UBUNTU_VERSION="${1#*=}"
             ;;
@@ -212,18 +124,12 @@ for i in "$@"; do
         --no-cache)
             NO_CACHE=y
             ;;
-        --nvidia_gpu)
-            NVIDIA_GPU_MODE=1
-            ;;
         --help)
             show_help
             exit 0
             ;;
         --internal)
             INTERNAL_MODE=1
-            ;;
-        --force)
-            FORCE_ARGS="--force"
             ;;
         *)
             echo -e "${TAG_ERROR}: Invalid option '$1'"
