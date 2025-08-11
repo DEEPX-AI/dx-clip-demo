@@ -10,6 +10,7 @@ pushd "$DX_AS_PATH"
 OUTPUT_DIR="$DX_AS_PATH/archives"
 UBUNTU_VERSION=""
 
+USE_VOLUME=0
 DEV_MODE=0
 INTEL_GPU_HW_ACC=0
 
@@ -19,6 +20,10 @@ show_help() {
     echo "Example:1) $0 --ubuntu_version=24.04"
     echo "Options:"
     echo "  --ubuntu_version=<version>     : Specify Ubuntu version (ex> 24.04)"
+    echo "  [--use-volume]                 : Mount the workspace directory to the container"
+    echo "                                   - Setup of dx-clip-demo will be skipped. "
+    echo "                                   - You'll need to set it up after the container is running."
+    echo "                                   - This opion helps to reduce the final Docker image size."
     echo "  [--help]                       : Show this help message"
 
     if [ "$1" == "error" ] && [[ ! -n "$2" ]]; then
@@ -63,6 +68,10 @@ docker_run_impl()
 {
     local target=$1
     local config_file_args=${2:--f docker/docker-compose.yml}
+
+    if [ ${USE_VOLUME} -eq 1 ]; then
+        config_file_args="${config_file_args} -f docker/docker-compose.use-volume.yml"
+    fi
 
     if [ ${DEV_MODE} -eq 1 ]; then
         config_file_args="${config_file_args} -f docker/docker-compose.dev.yml"
@@ -144,6 +153,9 @@ for i in "$@"; do
     case "$1" in
         --ubuntu_version=*)
             UBUNTU_VERSION="${1#*=}"
+            ;;
+        --use-volume)
+            USE_VOLUME=1
             ;;
         --help)
             show_help

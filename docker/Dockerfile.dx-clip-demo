@@ -143,14 +143,28 @@ RUN apt-get update && \
 WORKDIR /deepx/dx-clip-demo
 ARG FILE_DX_CLIP_DEMO=archives/dx-clip-demo.tar.gz
 ADD ${FILE_DX_CLIP_DEMO} /deepx/dx-clip-demo/
-# RUN set -x && \
-#     . /venv-dxnn/bin/activate && \
-#     echo "Build dx_clip_demo..." && \
-#     ./setup.sh --app_type=pyqt
+
+ARG USE_VOLUME=1
+RUN set -x && \
+    echo "USE_VOLUME: $USE_VOLUME" && \
+    if [ $USE_VOLUME -eq 1 ]; then \
+      echo "Skip to setup dx-clip-demo"; \
+    else \
+      echo "Setup dx-clip-demo ..." && \
+      ./setup.sh --app_type=pyqt; \
+    fi
+
 
 WORKDIR /deepx/dx-clip-demo
 
-RUN echo "source /venv-dxnn/bin/activate" >> /root/.bashrc
+RUN set -x && \
+    echo "USE_VOLUME: $USE_VOLUME" && \
+    if [ $USE_VOLUME -eq 1 ]; then \
+      echo "source /venv-dxnn/bin/activate" >> /root/.bashrc; \
+    else \
+      echo "source /deepx/dx-clip-demo/venv-pyqt/bin/activate" >> /root/.bashrc; \
+    fi
+
 
 ENV DX_CONTAINER_MODE=true
 

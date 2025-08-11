@@ -10,6 +10,7 @@ pushd "$DX_AS_PATH"
 OUTPUT_DIR="$DX_AS_PATH/archives"
 UBUNTU_VERSION=""
 
+USE_VOLUME=0
 INTERNAL_MODE=0
 
 # Function to display help message
@@ -19,6 +20,10 @@ show_help() {
     echo "Example 3) $0 --ubuntu_version=24.04 --driver_update"
     echo "Options:"
     echo "  --ubuntu_version=<version>     : Specify Ubuntu version (ex> 24.04)"
+    echo "  [--use-volume]                 : Mount the workspace directory to the container"
+    echo "                                   - Setup of dx-clip-demo will be skipped. "
+    echo "                                   - You'll need to set it up after the container is running."
+    echo "                                   - This opion helps to reduce the final Docker image size."
     echo "  [--driver_update]              : Install 'dx_rt_npu_linux_driver' in the host environment"
     echo "  [--no-cache]                   : Build Docker images freshly without cache"
     echo "  [--help]                       : Show this help message"
@@ -53,6 +58,7 @@ docker_build_impl()
     # Build Docker image
     export COMPOSE_BAKE=true
     export UBUNTU_VERSION=${UBUNTU_VERSION}
+    export USE_VOLUME=${USE_VOLUME}
     if [ ! -n "${XAUTHORITY}" ]; then
         echo -e "${TAG_INFO} XAUTHORITY env is not set. so, try to set automatically."
         DUMMY_XAUTHORITY="/tmp/dummy"
@@ -117,6 +123,9 @@ for i in "$@"; do
     case "$1" in
         --ubuntu_version=*)
             UBUNTU_VERSION="${1#*=}"
+            ;;
+        --use-volume)
+            USE_VOLUME=1
             ;;
         --driver_update)
             DRIVER_UPDATE=y
