@@ -1,5 +1,5 @@
 archives/
 *.crt
 !dummy.crt
-workspace/
+workspace*/
 
