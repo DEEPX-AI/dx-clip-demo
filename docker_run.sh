@@ -4,8 +4,9 @@ DX_AS_PATH=$(realpath -s "${SCRIPT_DIR}")
 
 # color env settings
 source ${DX_AS_PATH}/scripts/color_env.sh
+source ${DX_AS_PATH}/scripts/common_util.sh
 
-pushd "$DX_AS_PATH"
+pushd "$DX_AS_PATH" >&2
 
 OUTPUT_DIR="$DX_AS_PATH/archives"
 UBUNTU_VERSION=""
@@ -16,24 +17,31 @@ INTEL_GPU_HW_ACC=0
 
 # Function to display help message
 show_help() {
-    echo "Usage: $(basename "$0") OPTIONS(--ubuntu_version=<version> [--help]"
-    echo "Example:1) $0 --ubuntu_version=24.04"
-    echo "Options:"
-    echo "  --ubuntu_version=<version>     : Specify Ubuntu version (ex> 24.04)"
-    echo "  [--use-volume]                 : Mount the workspace directory to the container"
-    echo "                                   - Setup of dx-clip-demo will be skipped. "
-    echo "                                   - You'll need to set it up after the container is running."
-    echo "                                   - This opion helps to reduce the final Docker image size."
-    echo "  [--help]                       : Show this help message"
+    echo -e "Usage: ${COLOR_CYAN}$(basename "$0") --ubuntu_version=<version> [OPTIONS]${COLOR_RESET}"
+    echo -e ""
+    echo -e "${COLOR_BOLD}Required:${COLOR_RESET}"
+    echo -e "  ${COLOR_GREEN}--ubuntu_version=<version>${COLOR_RESET}     Specify Ubuntu version (ex> 24.04)"
+    echo -e ""
+    echo -e "${COLOR_BOLD}Optional:${COLOR_RESET}"
+    echo -e "  ${COLOR_GREEN}[--use-volume]${COLOR_RESET}                 Mount the workspace directory to the container"
+    echo -e "                                   - Setup of dx-clip-demo will be skipped."
+    echo -e "                                   - You'll need to set it up after the container is running."
+    echo -e "                                   - This option helps to reduce the final Docker image size."
+    echo -e "  ${COLOR_GREEN}[--help]${COLOR_RESET}                       Show this help message"
+    echo -e ""
+    echo -e "${COLOR_BOLD}Examples:${COLOR_RESET}"
+    echo -e "  ${COLOR_YELLOW}$0 --ubuntu_version=24.04${COLOR_RESET}"
+    echo -e "  ${COLOR_YELLOW}$0 --ubuntu_version=24.04 --use-volume${COLOR_RESET}"
+    echo -e ""
 
     if [ "$1" == "error" ] && [[ ! -n "$2" ]]; then
-        echo -e "${TAG_ERROR} Invalid or missing arguments."
+        print_colored_v2 "ERROR" "Invalid or missing arguments."
         exit 1
     elif [ "$1" == "error" ] && [[ -n "$2" ]]; then
-        echo -e "${TAG_ERROR} $2"
+        print_colored_v2 "ERROR" "$2"
         exit 1
     elif [[ "$1" == "warn" ]] && [[ -n "$2" ]]; then
-        echo -e "${TAG_WARN} $2"
+        print_colored_v2 "WARNING" "$2"
         return 0
     fi
     exit 0
@@ -41,24 +49,24 @@ show_help() {
 
 check_xdg_sesstion_type()
 {
-    echo -e "${TAG_INFO} XDG_SESSION_TYPE: $XDG_SESSION_TYPE"
+    print_colored_v2 "INFO" "XDG_SESSION_TYPE: $XDG_SESSION_TYPE"
     if [ "$XDG_SESSION_TYPE" == "tty" ]; then
-        echo -e "${TAG_WARN} ${COLOR_BRIGHT_YELLOW_ON_BLACK}You are currently running in a **tty session**, which does not support GUI. In such environments, it is not possible to visually confirm the results of example code execution via GUI. (Note): ${COLOR_RESET}"
+        print_colored_v2 "WARNING" "${COLOR_BRIGHT_YELLOW_ON_BLACK}You are currently running in a **tty session**, which does not support GUI. In such environments, it is not possible to visually confirm the results of example code execution via GUI. (Note): ${COLOR_RESET}"
         echo -e -n "${TAG_INFO} ${COLOR_BRIGHT_GREEN_ON_BLACK}Press any key and hit Enter to continue. ${COLOR_RESET}"
         read -r answer
-        echo -e "${TAG_INFO} Start docker run ..."
+        print_colored_v2 "INFO" "Start docker run ..."
 
     elif [ "$XDG_SESSION_TYPE" != "x11" ]; then
-        echo -e "${TAG_WARN} ${COLOR_BRIGHT_YELLOW_ON_BLACK}it is recommended to use an **X11 session (with .Xauthority support)** when working with the 'dx-all-suite' container.${COLOR_RESET}"
-        echo -e "${TAG_WARN} ${COLOR_BRIGHT_YELLOW_ON_BLACK}For more details, please refer to the [FAQ section of the dx-all-suite documentation](https://github.com/DEEPX-AI/dx-all-suite/blob/main/docs/source/faq.md).${COLOR_RESET}"
+        print_colored_v2 "WARNING" "${COLOR_BRIGHT_YELLOW_ON_BLACK}it is recommended to use an **X11 session (with .Xauthority support)** when working with the 'dx-all-suite' container.${COLOR_RESET}"
+        print_colored_v2 "WARNING" "${COLOR_BRIGHT_YELLOW_ON_BLACK}For more details, please refer to the [FAQ section of the dx-all-suite documentation](https://github.com/DEEPX-AI/dx-all-suite/blob/main/docs/source/faq.md).${COLOR_RESET}"
 
         echo -e "${COLOR_BRIGHT_GREEN_ON_BLACK}if the user's host environment is not based on **X11 (with .Xauthority)** but instead uses **Xwayland** or similar, the 'xauth' data may be lost after a system reboot or session logout. As a result, the authentication file mount between the host and the container may fail, making it impossible to restart or reuse the container.${COLOR_RESET}"
         echo -e -n "${COLOR_RED_ON_BLACK}This may cause issues. Do you still want to continue? (y/n): ${COLOR_RESET}"
         read -r answer
         if [[ "$answer" == "y" || "$answer" == "Y" ]]; then
-            echo -e "${TAG_INFO} Start docker run ..."
+            print_colored_v2 "INFO" "Start docker run ..."
         else
-            echo -e "${TAG_INFO} Docker run has been canceled."
+            print_colored_v2 "INFO" "Docker run has been canceled."
             exit 1
         fi
     fi
@@ -82,21 +90,23 @@ docker_run_impl()
     export UBUNTU_VERSION=${UBUNTU_VERSION}
     DUMMY_XAUTHORITY=""
     if [ ! -n "${XAUTHORITY}" ]; then
-        echo -e "${TAG_INFO} XAUTHORITY env is not set. so, try to set automatically."
+        print_colored_v2 "INFO" "XAUTHORITY env is not set. so, try to set automatically."
         DUMMY_XAUTHORITY="${DX_AS_PATH}/dummy_xauthority"
         rm -rf ${DUMMY_XAUTHORITY}
         touch ${DUMMY_XAUTHORITY}
         export XAUTHORITY=${DUMMY_XAUTHORITY}
         export XAUTHORITY_TARGET=${DUMMY_XAUTHORITY}
     else
-        echo -e "${TAG_INFO} XAUTHORITY(${XAUTHORITY}) is set"
+        print_colored_v2 "INFO" "XAUTHORITY(${XAUTHORITY}) is set"
         export XAUTHORITY_TARGET="/tmp/.docker.xauth"
     fi
 
-    CMD="docker compose ${config_file_args} up -d --remove-orphans dx-${target}"
+    # Dynamically set the project name based on the Ubuntu
+    export COMPOSE_PROJECT_NAME="dx-all-suite-$(echo "${UBUNTU_VERSION}" | sed 's/\./-/g')"
+    CMD="docker compose ${config_file_args} -p ${COMPOSE_PROJECT_NAME} up -d --remove-orphans dx-${target}"
     echo "${CMD}"
 
-    ${CMD}
+    ${CMD} || { print_colored_v2 "ERROR" "docker run 'dx-${target}' failed. "; exit 1; }
 
     if [ "$XDG_SESSION_TYPE" == "tty" ]; then
         local DOCKER_EXEC_CMD="docker exec -it dx-${target}-${UBUNTU_VERSION} touch /deepx/tty_flag"
@@ -104,7 +114,7 @@ docker_run_impl()
         echo -e "${DOCKER_EXEC_CMD}"
         ${DOCKER_EXEC_CMD}
     elif [ -n "${DUMMY_XAUTHORITY}" ]; then
-        echo -e "${TAG_INFO} Adding xauth into docker container"
+        print_colored_v2 "INFO" "Adding xauth into docker container"
 
         # remove 'localhost' or 'LOCALHOST' in DISPLAY env var
         if [[ "$DISPLAY" == localhost:* ]]; then
@@ -139,7 +149,7 @@ main() {
     if [ -z "$UBUNTU_VERSION" ]; then
         show_help "error" "--ubuntu_version ($UBUNTU_VERSION) does not exist."
     else
-        echo -e "${TAG_INFO} UBUNTU_VERSSION($UBUNTU_VERSION) is set."
+        print_colored_v2 "INFO" "UBUNTU_VERSSION($UBUNTU_VERSION) is set."
     fi
 
     check_xdg_sesstion_type
@@ -165,9 +175,7 @@ for i in "$@"; do
             DEV_MODE=1
             ;;
         *)
-            echo -e "${TAG_ERROR}: Invalid option '$1'"
-            show_help
-            exit 1
+            show_help "error" "Invalid option '$1'"
             ;;
     esac
     shift
@@ -175,6 +183,6 @@ done
 
 main
 
-popd
+popd >&2
 
 exit 0

@@ -4,8 +4,9 @@ DX_AS_PATH=$(realpath -s "${SCRIPT_DIR}")
 
 # color env settings
 source ${DX_AS_PATH}/scripts/color_env.sh
+source ${DX_AS_PATH}/scripts/common_util.sh
 
-pushd "$DX_AS_PATH"
+pushd "$DX_AS_PATH" >&2
 
 OUTPUT_DIR="$DX_AS_PATH/archives"
 UBUNTU_VERSION=""
@@ -15,20 +16,26 @@ INTEL_GPU_HW_ACC=0
 
 # Function to display help message
 show_help() {
-    echo "Usage: $(basename "$0") OPTIONS(--ubuntu_version=<version> [--help]"
-    echo "Example:1) $0 --ubuntu_version=24.04"
-    echo "Options:"
-    echo "  --ubuntu_version=<version>     : Specify Ubuntu version (ex> 24.04)"
-    echo "  [--help]                       : Show this help message"
+    echo -e "Usage: ${COLOR_CYAN}$(basename "$0") --ubuntu_version=<version> [OPTIONS]${COLOR_RESET}"
+    echo -e ""
+    echo -e "${COLOR_BOLD}Required:${COLOR_RESET}"
+    echo -e "  ${COLOR_GREEN}--ubuntu_version=<version>${COLOR_RESET}     Specify Ubuntu version (ex> 24.04)"
+    echo -e ""
+    echo -e "${COLOR_BOLD}Optional:${COLOR_RESET}"
+    echo -e "  ${COLOR_GREEN}[--help]${COLOR_RESET}                       Show this help message"
+    echo -e ""
+    echo -e "${COLOR_BOLD}Examples:${COLOR_RESET}"
+    echo -e "  ${COLOR_YELLOW}$0 --ubuntu_version=24.04${COLOR_RESET}"
+    echo -e ""
 
     if [ "$1" == "error" ] && [[ ! -n "$2" ]]; then
-        echo -e "${TAG_ERROR} Invalid or missing arguments."
+        print_colored_v2 "ERROR" "Invalid or missing arguments."
         exit 1
     elif [ "$1" == "error" ] && [[ -n "$2" ]]; then
-        echo -e "${TAG_ERROR} $2"
+        print_colored_v2 "ERROR" "$2"
         exit 1
     elif [[ "$1" == "warn" ]] && [[ -n "$2" ]]; then
-        echo -e "${TAG_WARN} $2"
+        print_colored_v2 "WARNING" "$2"
         return 0
     fi
     exit 0
@@ -48,20 +55,23 @@ docker_down_impl()
     export UBUNTU_VERSION=${UBUNTU_VERSION}
     DUMMY_XAUTHORITY=""
     if [ ! -n "${XAUTHORITY}" ]; then
-        echo -e "${TAG_INFO} XAUTHORITY env is not set. so, try to set automatically."
+        print_colored_v2 "INFO" "XAUTHORITY env is not set. so, try to set automatically."
         DUMMY_XAUTHORITY="/tmp/dummy"
         touch ${DUMMY_XAUTHORITY}
         export XAUTHORITY=${DUMMY_XAUTHORITY}
         export XAUTHORITY_TARGET=${DUMMY_XAUTHORITY}
+        
     else
-        echo -e "${TAG_INFO} XAUTHORITY(${XAUTHORITY}) is set"
+        print_colored_v2 "INFO" "XAUTHORITY(${XAUTHORITY}) is set"
         export XAUTHORITY_TARGET="/tmp/.docker.xauth"
     fi
 
-    CMD="docker compose ${config_file_args} down dx-${target}"
+    # Use the same project name as docker_run.sh
+    export COMPOSE_PROJECT_NAME="dx-all-suite-$(echo "${UBUNTU_VERSION}" | sed 's/\./-/g')"
+    CMD="docker compose ${config_file_args} -p ${COMPOSE_PROJECT_NAME} down dx-${target}"
     echo "${CMD}"
 
-    ${CMD}
+    ${CMD} || { print_colored_v2 "ERROR" "docker down 'dx-${target}' failed. "; exit 1; }
 }
 
 docker_down_dx-clip-demo()
@@ -75,7 +85,7 @@ main() {
     if [ -z "$UBUNTU_VERSION" ]; then
         show_help "error" "--ubuntu_version ($UBUNTU_VERSION) does not exist."
     else
-        echo -e "${TAG_INFO} UBUNTU_VERSSION($UBUNTU_VERSION) is set."
+        print_colored_v2 "INFO" "UBUNTU_VERSSION($UBUNTU_VERSION) is set."
     fi
    
     echo "Stopping and removing dx-clip-demo"
@@ -96,9 +106,7 @@ for i in "$@"; do
             DEV_MODE=1
             ;;
         *)
-            echo -e "${TAG_ERROR}: Invalid option '$1'"
-            show_help
-            exit 1
+            show_help "error" "Invalid option '$1'"
             ;;
     esac
     shift
@@ -106,6 +114,6 @@ done
 
 main
 
-popd
+popd >&2
 
 exit 0
